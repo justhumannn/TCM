@@ -4,7 +4,7 @@ import {
 } from "react-native"
 import { useRouter, usePathname } from "expo-router"
 import {
-  House, CalendarBlank, BellRinging, Gear, Sparkle,
+  House, CalendarBlank, BellRinging, Gear,
 } from "phosphor-react-native"
 import { C } from "@/lib/theme"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -96,17 +96,6 @@ export function BottomNav({ pendingCount = 0 }: { pendingCount?: number }) {
   return (
     <View style={[s.nav, { paddingBottom: insets.bottom + 6 }]}>
       {LEFT_ITEMS.map(item => <NavItem key={item.href} {...item} />)}
-
-      {/* 중앙 AI 버튼 */}
-      <TouchableOpacity
-        style={s.centerBtn}
-        onPress={() => router.push("/detect")}
-        activeOpacity={0.85}
-      >
-        <View style={s.centerBtnInner}>
-          <Sparkle size={24} weight="fill" color="#1A1A1A" />
-        </View>
-      </TouchableOpacity>
 
       {RIGHT_ITEMS.map(item => <NavItem key={item.href} {...item} />)}
     </View>

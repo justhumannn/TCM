@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react"
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
 } from "react-native"
 import {
   Bell, Sliders, ChatCircle, Translate, Trash, Info,
-  CaretRight, CheckCircle, GoogleLogo, Database, Key, Eye, EyeSlash,
+  CaretRight, CheckCircle, GoogleLogo, Database,
 } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Avatar, BottomNav, Toggle } from "@/components/shared"
 import { C } from "@/lib/theme"
 import { dbGetSettings, dbUpdateSettings } from "@/lib/db"
-import { getApiKey, saveApiKey, deleteApiKey } from "@/lib/store"
 import type { AISensitivity } from "@/lib/types"
 
 const SENSITIVITY_LABELS: Record<AISensitivity, string> = { low: "낮음", medium: "보통", high: "높음" }
@@ -44,12 +43,6 @@ export default function SettingsScreen() {
   const [sensitivity, setSensitivity] = useState<AISensitivity>("high")
   const [saving, setSaving] = useState(false)
 
-  // API 키 관련
-  const [apiKeyInput, setApiKeyInput] = useState("")
-  const [hasApiKey, setHasApiKey] = useState(false)
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
-  const [showKey, setShowKey] = useState(false)
-
   useEffect(() => {
     try {
       const s = dbGetSettings()
@@ -57,7 +50,6 @@ export default function SettingsScreen() {
       setGoogleLinked(s.googleCalendarConnected)
       setSensitivity(s.aiSensitivity)
     } catch {}
-    getApiKey().then(k => setHasApiKey(!!k)).catch(() => {})
   }, [])
 
   function patch(data: Parameters<typeof dbUpdateSettings>[0]) {
@@ -178,85 +170,6 @@ export default function SettingsScreen() {
           <View style={s.card}>
             <SettingRow icon={Translate} label="언어 설정" value="한국어" />
             <SettingRow icon={Info} label="앱 정보" value="v1.0.0" />
-          </View>
-        </View>
-
-        {/* AI 설정 — API 키 */}
-        <View>
-          <SectionHeader title="AI 키" />
-          <View style={s.card}>
-            <View style={s.row}>
-              <View style={[s.rowIcon, { backgroundColor: hasApiKey ? C.greenLight : C.ultraLight }]}>
-                <Key size={16} weight="fill" color={hasApiKey ? C.greenDark : C.darkGray} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Anthropic API 키</Text>
-                <Text style={[s.rowValue, { marginTop: 1 }]}>
-                  {hasApiKey ? "저장됨 ✓" : "미설정"}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[s.connectBtn, hasApiKey && { borderColor: C.lightGray }]}
-                onPress={() => setShowApiKeyInput(v => !v)}
-              >
-                <Text style={[s.connectBtnText, hasApiKey && { color: C.darkGray }]}>
-                  {showApiKeyInput ? "닫기" : hasApiKey ? "변경" : "입력"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {showApiKeyInput && (
-              <View style={s.apiKeyInputWrap}>
-                <View style={s.apiKeyInputRow}>
-                  <TextInput
-                    value={apiKeyInput}
-                    onChangeText={setApiKeyInput}
-                    placeholder="sk-ant-..."
-                    placeholderTextColor={C.midGray}
-                    style={s.apiKeyInput}
-                    secureTextEntry={!showKey}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <TouchableOpacity
-                    style={s.eyeBtn}
-                    onPress={() => setShowKey(v => !v)}
-                  >
-                    {showKey
-                      ? <EyeSlash size={16} color={C.darkGray} />
-                      : <Eye size={16} color={C.darkGray} />}
-                  </TouchableOpacity>
-                </View>
-                <View style={s.apiKeyActions}>
-                  <TouchableOpacity
-                    style={[s.apiKeySaveBtn, !apiKeyInput.trim() && { opacity: 0.4 }]}
-                    disabled={!apiKeyInput.trim()}
-                    onPress={async () => {
-                      await saveApiKey(apiKeyInput.trim())
-                      setHasApiKey(true)
-                      setApiKeyInput("")
-                      setShowApiKeyInput(false)
-                    }}
-                  >
-                    <Text style={s.apiKeySaveBtnText}>저장</Text>
-                  </TouchableOpacity>
-                  {hasApiKey && (
-                    <TouchableOpacity
-                      onPress={() => Alert.alert("API 키 삭제", "저장된 API 키를 삭제할까요?", [
-                        { text: "취소", style: "cancel" },
-                        { text: "삭제", style: "destructive", onPress: async () => {
-                          await deleteApiKey()
-                          setHasApiKey(false)
-                          setShowApiKeyInput(false)
-                        }},
-                      ])}
-                    >
-                      <Text style={s.apiKeyDeleteText}>키 삭제</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
           </View>
         </View>
 
@@ -434,50 +347,4 @@ const s = StyleSheet.create({
     marginLeft: -8,
   },
   footer: { fontSize: 11, color: C.midGray, textAlign: "center" },
-  apiKeyInputWrap: {
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: C.ultraLight,
-  },
-  apiKeyInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: C.ultraLight,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.lightGray,
-    paddingHorizontal: 12,
-  },
-  apiKeyInput: {
-    flex: 1,
-    fontSize: 13,
-    color: C.black,
-    paddingVertical: 10,
-  },
-  eyeBtn: {
-    padding: 6,
-  },
-  apiKeyActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  apiKeySaveBtn: {
-    backgroundColor: C.yellow,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-  },
-  apiKeySaveBtnText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
-  apiKeyDeleteText: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "500",
-  },
 })
