@@ -3,16 +3,16 @@
 import { useEffect, useState } from "react"
 import { Bell, Gear, CalendarCheck, ChatCircleDots, CheckCircle } from "@phosphor-icons/react"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase"
 import { BottomNav, EventDetectionCard, Avatar, StatusBar } from "@/components/tcm/shared"
 import { MOCK_USER, MOCK_DETECTIONS, MOCK_STATS, MOCK_EVENTS } from "@/lib/mock-data"
-import type { User, CalendarEvent, DetectedEvent } from "@/lib/types/database"
+import { getCalendarEvents, getPendingDetections } from "@/lib/api"
+import type { CalendarEvent, DetectedEvent } from "@/lib/types/database"
 
 type Stats = { thisWeek: number; pending: number; savedTotal: number }
 
 function getWeekDates() {
   const today = new Date()
-  const dow = (today.getDay() + 6) % 7 // 월=0
+  const dow = (today.getDay() + 6) % 7
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today)
     d.setDate(today.getDate() - dow + i)
@@ -33,48 +33,28 @@ function fmtDetectedDate(det: DetectedEvent) {
 }
 
 export default function HomePage() {
-  const [user, setUser] = useState<User>(MOCK_USER)
   const [stats, setStats] = useState<Stats>(MOCK_STATS)
   const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>(MOCK_EVENTS)
   const [detections, setDetections] = useState<DetectedEvent[]>(MOCK_DETECTIONS)
 
   useEffect(() => {
-    async function tryLoadReal() {
+    async function load() {
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        if (!authUser) return
-
         const today = new Date()
-        const dow = (today.getDay() + 6) % 7
-        const mon = new Date(today); mon.setDate(today.getDate() - dow)
-        const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
-        const fmt = (d: Date) => d.toISOString().split("T")[0]
-
-        const [profileRes, weekRes, pendingRes, totalRes] = await Promise.all([
-          supabase.from("users").select("*").eq("id", authUser.id).single(),
-          supabase.from("calendar_events").select("*").eq("user_id", authUser.id)
-            .gte("event_date", fmt(mon)).lte("event_date", fmt(sun)),
-          supabase.from("detected_events").select("*").eq("user_id", authUser.id)
-            .eq("status", "pending").order("detected_at", { ascending: false }).limit(3),
-          supabase.from("calendar_events").select("id", { count: "exact" })
-            .eq("user_id", authUser.id).eq("is_ai_generated", true),
+        const [dets, evts] = await Promise.all([
+          getPendingDetections(),
+          getCalendarEvents(today.getFullYear(), today.getMonth() + 1),
         ])
-
-        if (profileRes.data) setUser(profileRes.data as User)
-        const wEvents = (weekRes.data ?? []) as CalendarEvent[]
-        if (wEvents.length) setWeekEvents(wEvents)
-        const dets = (pendingRes.data ?? []) as DetectedEvent[]
         if (dets.length) setDetections(dets)
-        setStats({
-          thisWeek: wEvents.length || MOCK_STATS.thisWeek,
-          pending: dets.length,
-          savedTotal: totalRes.count ?? MOCK_STATS.savedTotal,
-        })
-      } catch {
-        // Supabase 연결 실패 시 목업 데이터 유지
-      }
+        if (evts.length) setWeekEvents(evts)
+        setStats(s => ({
+          ...s,
+          pending: dets.length || s.pending,
+          thisWeek: evts.length || s.thisWeek,
+        }))
+      } catch { /* 목업 유지 */ }
     }
-    tryLoadReal()
+    load()
   }, [])
 
   const today = new Date()
@@ -95,10 +75,10 @@ export default function HomePage() {
       {/* 상단 바 */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <Avatar initials={user.name.slice(0, 2)} size="md" />
+          <Avatar initials={MOCK_USER.name.slice(0, 2)} size="md" />
           <div>
             <p className="text-[14px] font-semibold text-[#171717]">
-              안녕하세요, {user.name}님 👋
+              안녕하세요, {MOCK_USER.name}님 👋
             </p>
             <p className="text-[12px] text-[#737373]">오늘도 좋은 하루 되세요</p>
           </div>
@@ -142,7 +122,7 @@ export default function HomePage() {
               <p className="text-[11px] text-yellow-200/70 mt-1.5">오늘 {detections.length}건 감지됨</p>
             </div>
             <div className="flex flex-col items-end gap-1.5 ml-4">
-              <div className="w-13 h-7 rounded-full bg-white flex items-center px-1" style={{ width: 52 }}>
+              <div className="w-12 h-7 rounded-full bg-white flex items-center px-1">
                 <div className="w-5 h-5 rounded-full bg-[#EAB308] ml-auto shadow-sm" />
               </div>
               <span className="text-[11px] text-yellow-100 font-medium">활성화됨</span>
@@ -203,7 +183,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="flex flex-col gap-3">
-            {detections.map(det => (
+            {detections.slice(0, 3).map(det => (
               <EventDetectionCard
                 key={det.id}
                 room={det.extracted_title ?? "카카오톡 채팅방"}

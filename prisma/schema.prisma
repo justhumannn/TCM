@@ -1,0 +1,52 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model CalendarEvent {
+  id              String   @id @default(cuid())
+  detectedEventId String?  @map("detected_event_id")
+  title           String
+  eventDate       String   @map("event_date")
+  eventTime       String?  @map("event_time")
+  location        String?
+  participants    String?  // JSON 배열 문자열
+  purpose         String?
+  memo            String?
+  isAiGenerated   Boolean  @default(false) @map("is_ai_generated")
+  importance      String   @default("normal")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("calendar_events")
+}
+
+model DetectedEvent {
+  id                    String    @id @default(cuid())
+  aiConfidence          Float     @default(0.9) @map("ai_confidence")
+  status                String    @default("pending")
+  extractedTitle        String?   @map("extracted_title")
+  extractedDate         String?   @map("extracted_date")
+  extractedTime         String?   @map("extracted_time")
+  extractedLocation     String?   @map("extracted_location")
+  extractedParticipants String?   @map("extracted_participants") // JSON 배열 문자열
+  extractedPurpose      String?   @map("extracted_purpose")
+  detectedAt            DateTime  @default(now()) @map("detected_at")
+  reviewedAt            DateTime? @map("reviewed_at")
+
+  @@map("detected_events")
+}
+
+model Settings {
+  id                      Int     @id @default(1)
+  userName                String  @default("사용자") @map("user_name")
+  aiSensitivity           String  @default("high") @map("ai_sensitivity")
+  googleCalendarConnected Boolean @default(false) @map("google_calendar_connected")
+  kakaoConnected          Boolean @default(false) @map("kakao_connected")
+
+  @@map("settings")
+}

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
-  House, CalendarBlank, Bell, ChatCircle, Gear,
+  House, CalendarBlank, Bell, Gear,
   ChatCircleDots, BellRinging,
 } from "@phosphor-icons/react"
 
@@ -57,11 +57,10 @@ export function BottomNav({
   const pathname = usePathname()
 
   const tabs = [
-    { id: "home",     href: "/home",     icon: House,          label: "홈" },
-    { id: "calendar", href: "/calendar", icon: CalendarBlank,  label: "일정" },
-    { id: "alerts",   href: "/alerts",   icon: Bell,           label: "알림" },
-    { id: "chat",     href: "#",         icon: ChatCircle,     label: "채팅" },
-    { id: "settings", href: "/settings", icon: Gear,           label: "설정" },
+    { id: "home",     href: "/home",     icon: House,         label: "홈" },
+    { id: "calendar", href: "/calendar", icon: CalendarBlank, label: "일정" },
+    { id: "alerts",   href: "/alerts",   icon: Bell,          label: "알림" },
+    { id: "settings", href: "/settings", icon: Gear,          label: "설정" },
   ]
 
   return (
