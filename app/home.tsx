@@ -1,16 +1,18 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, AppState,
 } from "react-native"
 import { useRouter } from "expo-router"
 import {
   Sparkle, CalendarBlank, BellRinging, Clock, MapPin,
+  ChatCircle, Warning, CheckCircle, ArrowRight,
 } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { BottomNav, Avatar } from "@/components/shared"
 import { C } from "@/lib/theme"
 import { MOCK_EVENTS, MOCK_DETECTIONS, MOCK_STATS } from "@/lib/mock-data"
 import { dbGetEvents, dbGetPendingDetections } from "@/lib/db"
+import { getPermissionStatus } from "@/lib/kakao-service"
 import type { CalendarEvent, DetectedEvent } from "@/lib/types"
 
 function fmtTime(t: string | null) {
@@ -36,6 +38,16 @@ export default function HomeScreen() {
 
   const [events, setEvents] = useState<CalendarEvent[]>(MOCK_EVENTS)
   const [detections, setDetections] = useState<DetectedEvent[]>(MOCK_DETECTIONS)
+  const [kakaoPerms, setKakaoPerms] = useState<{ notification: boolean; accessibility: boolean }>({
+    notification: false, accessibility: false,
+  })
+
+  const refreshPerms = useCallback(async () => {
+    try {
+      const p = await getPermissionStatus()
+      setKakaoPerms(p)
+    } catch {}
+  }, [])
 
   useEffect(() => {
     try {
@@ -46,7 +58,15 @@ export default function HomeScreen() {
       const d = dbGetPendingDetections()
       if (d.length) setDetections(d)
     } catch {}
+    refreshPerms()
   }, [])
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", state => {
+      if (state === "active") refreshPerms()
+    })
+    return () => sub.remove()
+  }, [refreshPerms])
 
   const upcomingEvents = events
     .filter(e => e.event_date >= todayISO)
@@ -89,6 +109,37 @@ export default function HomeScreen() {
             <Text style={s.bannerBadgeLabel}>대기 중</Text>
           </View>
         </TouchableOpacity>
+
+        {/* 카카오톡 모니터링 상태 */}
+        {(() => {
+          const allOk = kakaoPerms.notification && kakaoPerms.accessibility
+          return (
+            <TouchableOpacity
+              style={[s.kakaoCard, allOk && s.kakaoCardOk]}
+              onPress={() => router.push("/permissions" as any)}
+              activeOpacity={0.85}
+            >
+              <View style={[s.kakaoIcon, allOk && s.kakaoIconOk]}>
+                <ChatCircle size={20} weight="fill" color={allOk ? C.greenDark : "#D97706"} />
+              </View>
+              <View style={s.kakaoInfo}>
+                <Text style={s.kakaoTitle}>카카오톡 자동 감지</Text>
+                <Text style={s.kakaoSub}>
+                  {allOk ? "알림·접근성 권한 허용됨 — 실시간 감지 중" : "권한 설정이 필요해요"}
+                </Text>
+              </View>
+              {allOk ? (
+                <CheckCircle size={20} weight="fill" color={C.green} />
+              ) : (
+                <View style={s.kakaoSetupBtn}>
+                  <Warning size={13} weight="fill" color="#D97706" />
+                  <Text style={s.kakaoSetupText}>설정</Text>
+                  <ArrowRight size={12} weight="bold" color="#D97706" />
+                </View>
+              )}
+            </TouchableOpacity>
+          )
+        })()}
 
         {/* 통계 */}
         <View style={s.statsRow}>
@@ -303,4 +354,44 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   confText: { fontSize: 12, fontWeight: "700", color: "#1A1A1A" },
+  kakaoCard: {
+    backgroundColor: C.white,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  kakaoCardOk: { borderColor: C.green, backgroundColor: "#F0FDF4" },
+  kakaoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#FFFBEB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  kakaoIconOk: { backgroundColor: C.greenLight },
+  kakaoInfo: { flex: 1 },
+  kakaoTitle: { fontSize: 13, fontWeight: "700", color: C.black },
+  kakaoSub: { fontSize: 11, color: C.darkGray, marginTop: 2 },
+  kakaoSetupBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  kakaoSetupText: { fontSize: 11, fontWeight: "700", color: "#D97706" },
 })
